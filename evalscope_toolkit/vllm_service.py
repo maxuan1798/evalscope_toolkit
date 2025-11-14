@@ -134,15 +134,13 @@ class VLLMService:
         
         print(f"vLLM PID={self.process.pid}, log={vllm_log}")
         
-        # Wait for service to be ready
-        # Local models: 3 min, Remote models: 10 min (for download)
-        timeout = 600 if not self.is_local_path(model_ref) else 180
-        print(f"Waiting for vLLM to be ready (timeout: {timeout}s)...")
+        # Wait for service to be ready (no timeout - wait until success or process dies)
+        print(f"Waiting for vLLM to be ready...")
         
         start_time = time.time()
         check_interval = 2
         
-        while time.time() - start_time < timeout:
+        while True:
             elapsed = int(time.time() - start_time)
             
             # Check if process died
@@ -162,15 +160,9 @@ class VLLMService:
             
             # Show progress every 30s
             if elapsed > 0 and elapsed % 30 == 0:
-                print(f"  Still waiting... {elapsed}s / {timeout}s")
+                print(f"  Still waiting... {elapsed}s elapsed")
             
             time.sleep(check_interval)
-        
-        # Timeout
-        print(f"\n✗ Timeout after {timeout}s")
-        self._show_log_tail(vllm_log)
-        self.stop()
-        raise RuntimeError(f"vLLM startup timeout ({timeout}s)")
     
     def _show_log_tail(self, log_path: Path, lines: int = 50):
         """Show last lines of log file"""
