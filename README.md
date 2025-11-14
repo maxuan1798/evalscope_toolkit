@@ -1,9 +1,78 @@
-# Evalscope Toolkit - 项目总结
+# 🚀 Evalscope Toolkit
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![GitHub](https://img.shields.io/badge/GitHub-evalscope--toolkit-blue?logo=github)](https://github.com/maxuan1798/evalscope_toolkit)
+
+一个简化的、模块化的大语言模型评估工具包，基于 vLLM 和 Evalscope 构建。
+
+## ✨ 特性
+
+- 🎯 **简单易用** - 只需配置模型和数据集即可开始评估
+- 📦 **模块化设计** - 清晰的代码结构，易于维护和扩展
+- 🔄 **自动化流程** - 自动管理数据集、vLLM 服务和评估流程
+- 📊 **多数据集支持** - 内置 10+ 种标准评估数据集
+- 🎨 **多种使用方式** - Notebook、Python 脚本、命令行均可
+- 🛡️ **健壮可靠** - 完善的错误处理和日志记录
+
+## 🎯 支持的数据集
+
+| 数据集 | 类型 | 描述 |
+|--------|------|------|
+| `gsm8k` | 数学推理 | 小学数学问题 |
+| `humaneval` | 代码生成 | Python 代码生成 |
+| `mmlu` | 通识知识 | 多任务语言理解 |
+| `competition_math` | 数学 | 竞赛级数学问题 |
+| `drop` | 阅读理解 | 离散推理 |
+| `hellaswag` | 常识推理 | 句子补全 |
+| `arc` | 科学 | AI2 推理挑战 |
+| `truthfulqa` | 真实性 | 真实性问答 |
+| `winogrande` | 常识 | Winograd 模式 |
+| `math_500` | 数学 | 数学问题集 |
+
+## 📦 快速开始
+
+### 方式 1: Notebook（推荐）
+
+```bash
+git clone https://github.com/maxuan1798/evalscope_toolkit.git
+cd evalscope_toolkit
+jupyter notebook eval.ipynb
+```
+
+在 Notebook 中直接运行评估代码。
+
+### 方式 2: Python 脚本
+
+```python
+from evalscope_toolkit import EvalConfig, Evaluator
+
+# 配置评估
+config = EvalConfig(
+    models=["unsloth/Llama-3.2-3B-Instruct"],
+    datasets=["gsm8k", "humaneval"],
+    gpus="0",
+    gpu_memory_utilization=0.6
+)
+
+# 运行评估
+evaluator = Evaluator(config)
+results = evaluator.run()
+```
+
+### 方式 3: 命令行
+
+```bash
+python -m evalscope_toolkit.cli \
+    --models "model1,model2" \
+    --datasets "gsm8k,humaneval" \
+    --gpus "0,1"
+```
 
 ## 📦 项目结构
 
 ```
-evalscope-toolkit/
+evalscope_toolkit/
 ├── evalscope_toolkit/              # 核心 Python 包
 │   ├── __init__.py                # 包初始化，导出主要类
 │   ├── config.py                  # EvalConfig - 配置管理
@@ -13,75 +82,162 @@ evalscope-toolkit/
 │   ├── utils.py                   # 工具函数（依赖安装等）
 │   └── cli.py                     # 命令行接口
 │
-├── simple_eval.ipynb              # 🌟 简化版 Notebook（推荐使用）
-├── example_eval.py                # Python 脚本示例
-├── eval.ipynb                     # 原版完整 Notebook（保留）
-│
+├── eval.ipynb                     # 原版完整 Notebook
 ├── setup.py                       # Python 包安装配置
-├── requirements.txt               # 依赖列表
-├── README.md                      # 主文档
-├── QUICKSTART.md                  # 快速开始指南
-├── LICENSE                        # MIT 许可证
-├── .gitignore                     # Git 忽略文件
-│
-├── chat_template.jinja            # Chat template（可选）
-├── data/                          # 数据缓存目录（自动创建）
-└── log/                           # 日志目录（自动创建）
+├── README.md                      # 项目文档
+└── .gitignore                     # Git 忽略文件
 ```
+
+## 🔧 安装依赖
+
+### 系统要求
+- Python 3.9+
+- CUDA 11.8+ (GPU 推理)
+- 8GB+ GPU 内存（小模型）
+
+### 依赖安装
+```bash
+pip install torch vllm evalscope modelscope datasets
+```
+
+或从源码安装：
+```bash
+git clone https://github.com/maxuan1798/evalscope_toolkit.git
+cd evalscope_toolkit
+pip install -e .
+```
+
+## 📊 核心架构
+
+```
+1. 配置创建 (EvalConfig)
+   ↓
+2. 数据集准备 (DatasetManager)
+   - 下载数据集
+   - 验证缓存
+   ↓
+3. 模型评估循环
+   ├─ 启动 vLLM 服务 (VLLMService)
+   ├─ 数据集评估循环
+   │  ├─ 调用 evalscope 评估
+   │  └─ 记录结果和时间
+   └─ 停止 vLLM 服务
+   ↓
+4. 生成报告
+   - evaluation_summary.json
+   - overall_evaluation_times.log
+```
+
+## 📝 配置示例
+
+### 基础配置
+```python
+config = EvalConfig(
+    models=["unsloth/Llama-3.2-3B-Instruct"],
+    datasets=["gsm8k"],
+)
+```
+
+### 高级配置
+```python
+config = EvalConfig(
+    # 模型和数据集
+    models=["model1", "model2", "/path/to/local/model"],
+    datasets=["gsm8k", "humaneval", "mmlu"],
+    
+    # GPU 配置
+    gpus="0,1",                      # 使用的 GPU
+    tensor_parallel_size=2,          # 张量并行大小
+    gpu_memory_utilization=0.6,      # GPU 内存利用率
+    
+    # 评估参数
+    eval_batch_size=32,              # 批次大小
+    max_new_tokens=2048,             # 最大生成 token 数
+    temperature=0.0,                 # 采样温度
+    
+    # 路径配置
+    data_root=Path("./data"),        # 数据缓存目录
+    log_root=Path("./log"),          # 日志目录
+)
+```
+
+## 🎁 主要改进
+
+### 相比原版 Notebook
+
+| 特性 | 原版 | Evalscope Toolkit |
+|------|------|-------------------|
+| 代码结构 | 500+ 行单文件 | 模块化 7 个文件 |
+| 可复用性 | ❌ | ✅ 可作为包导入 |
+| 配置管理 | 分散在各处 | 统一配置类 |
+| 错误处理 | 基础 | 完善的异常处理 |
+| 命令行支持 | ❌ | ✅ |
+| 文档 | 基础 | 完整文档 + 示例 |
+| 超时策略 | 固定 300s | 智能超时 (3-10min) |
+
+### 核心优化
+
+✅ **简化的启动流程** - 智能超时策略，远程模型 10 分钟，本地模型 3 分钟  
+✅ **更好的错误提示** - 失败时显示关键日志，快速定位问题  
+✅ **自动化程度高** - 自动下载数据集、管理服务、生成报告  
+✅ **清晰的进度反馈** - 实时显示评估进度和剩余时间  
+
+## 📂 输出结果
+
+评估结果保存在 `log/outputs_<用户>_<实例ID>/` 目录：
+
+```
+log/outputs_user_111412531924263/
+├── evaluation_summary.json          # 评估摘要
+├── overall_evaluation_times.log     # 总体时间日志
+├── vllm_<hash>.log                  # vLLM 服务日志
+└── model-name/
+    ├── evaluation_times.log         # 模型评估时间
+    ├── gsm8k/
+    │   ├── result.json              # 评估结果
+    │   └── predictions.jsonl        # 预测结果
+    └── humaneval/
+        └── ...
+```
+
+## 🛠️ 常见问题
+
+### 端口被占用
+程序会自动寻找可用端口，无需手动处理。
+
+### GPU 内存不足
+降低 `gpu_memory_utilization` 值：
+```python
+config = EvalConfig(
+    gpu_memory_utilization=0.4,  # 降低到 40%
+)
+```
+
+### 模型下载慢
+使用本地模型或设置 HuggingFace 镜像：
+```bash
+export HF_ENDPOINT=https://hf-mirror.com
+```
+
+### vLLM 启动失败
+查看日志文件 `vllm_<hash>.log`，失败时会自动显示最后 50 行。
+
+
 
 ## 🎯 核心模块说明
 
-### 1. `config.py` - 配置管理
-- **EvalConfig** 类：统一管理所有配置
-- 自动创建必要的目录
-- 设置环境变量（缓存路径等）
-- 提供数据集参数配置
+| 模块 | 类 | 功能 |
+|------|-----|------|
+| `config.py` | `EvalConfig` | 统一配置管理，环境变量设置 |
+| `dataset_manager.py` | `DatasetManager` | 数据集下载、缓存和验证 |
+| `vllm_service.py` | `VLLMService` | vLLM 服务生命周期管理 |
+| `evaluator.py` | `Evaluator` | 评估流程编排和执行 |
+| `utils.py` | - | 依赖检查、安装等工具函数 |
+| `cli.py` | - | 命令行接口 |
 
-### 2. `dataset_manager.py` - 数据集管理
-- **DatasetManager** 类：处理数据集下载和缓存
-- 支持 10+ 种 evalscope 官方数据集
-- 使用 ModelScope 进行数据集下载
-- 自动缓存和验证数据集
+## 🚀 使用示例
 
-### 3. `vllm_service.py` - vLLM 服务管理
-- **VLLMService** 类：管理 vLLM 服务生命周期
-- 自动端口分配
-- 健康检查和错误处理
-- 支持本地模型和 HuggingFace 模型
-
-### 4. `evaluator.py` - 评估编排
-- **Evaluator** 类：协调完整评估流程
-- 准备数据集
-- 启动 vLLM 服务
-- 执行评估
-- 生成结果报告
-
-### 5. `utils.py` - 工具函数
-- 依赖检查和安装
-- GPU 可用性检测
-- GitHub 仓库下载
-
-### 6. `cli.py` - 命令行接口
-- 提供命令行使用方式
-- 支持列出数据集
-- 支持批量下载数据集
-
-## 🚀 使用方式
-
-### 方式 1: Notebook（最简单）
-
-```bash
-jupyter notebook simple_eval.ipynb
-```
-
-只需修改配置单元格：
-```python
-MODELS = ["unsloth/Llama-3.2-3B-Instruct"]
-DATASETS = ["gsm8k"]
-```
-
-### 方式 2: Python 脚本
-
+### 示例 1: 单模型单数据集
 ```python
 from evalscope_toolkit import EvalConfig, Evaluator
 
@@ -94,191 +250,85 @@ evaluator = Evaluator(config)
 results = evaluator.run()
 ```
 
-### 方式 3: 命令行
-
-```bash
-evalscope-toolkit --models "model1,model2" --datasets "gsm8k,humaneval"
-```
-
-## 📊 数据流程
-
-```
-1. 配置创建 (EvalConfig)
-   ↓
-2. 数据集准备 (DatasetManager)
-   - 下载数据集
-   - 验证缓存
-   ↓
-3. 模型循环
-   ├─ 启动 vLLM 服务 (VLLMService)
-   ├─ 数据集循环
-   │  ├─ 运行 evalscope 评估
-   │  └─ 记录结果和时间
-   └─ 停止 vLLM 服务
-   ↓
-4. 生成报告
-   - evaluation_summary.json
-   - overall_evaluation_times.log
-   - 详细结果目录
-```
-
-## 🔑 关键特性
-
-### 1. 自动化
-- ✅ 自动安装依赖
-- ✅ 自动下载数据集
-- ✅ 自动管理 vLLM 服务
-- ✅ 自动生成日志和报告
-
-### 2. 灵活性
-- ✅ 支持多种使用方式（Notebook/脚本/CLI）
-- ✅ 支持本地模型和云端模型
-- ✅ 支持单 GPU 和多 GPU
-- ✅ 可自定义所有评估参数
-
-### 3. 健壮性
-- ✅ 完整的错误处理
-- ✅ 详细的日志记录
-- ✅ 资源清理保证
-- ✅ 服务健康检查
-
-### 4. 易用性
-- ✅ 简单的配置接口
-- ✅ 清晰的文档
-- ✅ 丰富的示例
-- ✅ 友好的错误提示
-
-## 📝 配置示例
-
-### 基本配置
+### 示例 2: 多模型多数据集
 ```python
 config = EvalConfig(
-    models=["model-name"],
-    datasets=["gsm8k"],
-)
-```
-
-### 完整配置
-```python
-config = EvalConfig(
-    # 模型和数据集
-    models=["model1", "model2"],
+    models=[
+        "unsloth/Llama-3.2-3B-Instruct",
+        "Qwen/Qwen2.5-7B-Instruct",
+    ],
     datasets=["gsm8k", "humaneval", "mmlu"],
-    
-    # GPU 配置
     gpus="0,1",
-    tensor_parallel_size=2,
-    gpu_memory_utilization=0.6,
-    max_num_seqs=64,
-    
-    # 评估参数
-    eval_batch_size=32,
-    max_new_tokens=2048,
-    temperature=0.0,
-    top_p=1.0,
-    eval_n=1,
-    seed=42,
-    system_prompt="Custom system prompt",
-    
-    # 路径配置
-    workspace=Path("/custom/workspace"),
-    data_root=Path("/custom/data"),
-    log_root=Path("/custom/logs"),
-    chat_template=Path("/custom/template.jinja"),
-    
-    # 服务配置
-    base_port=8800,
-    user_id="custom_user",
 )
+
+evaluator = Evaluator(config)
+results = evaluator.run()
 ```
 
-## 🎁 相比原版的改进
+## 🌟 最佳实践
 
-### 原版 (eval.ipynb)
-- ❌ 代码全部在 Notebook 中
-- ❌ 难以复用和维护
-- ❌ 配置和逻辑混在一起
-- ❌ 不能作为包导入
-- ❌ 没有命令行支持
+### GPU 内存管理
+```python
+# 小模型 (<7B)
+config = EvalConfig(gpu_memory_utilization=0.8)
 
-### 新版 (Evalscope Toolkit)
-- ✅ 代码模块化，职责清晰
-- ✅ 可以作为 Python 包使用
-- ✅ 配置和逻辑分离
-- ✅ 支持多种使用方式
-- ✅ 完整的文档和示例
+# 中等模型 (7B-13B)  
+config = EvalConfig(gpu_memory_utilization=0.6)
 
-## 📦 发布到 GitHub
-
-### 1. 创建仓库
-```bash
-cd evalscope-toolkit
-git init
-git add .
-git commit -m "Initial commit: Evalscope Toolkit v1.0.0"
+# 大模型 (>13B)
+config = EvalConfig(gpu_memory_utilization=0.4)
 ```
 
-### 2. 推送到 GitHub
-```bash
-git remote add origin https://github.com/YOUR_USERNAME/evalscope-toolkit.git
-git branch -M main
-git push -u origin main
+### 多 GPU 配置
+```python
+# 单模型多 GPU (张量并行)
+config = EvalConfig(gpus="0,1", tensor_parallel_size=2)
+
+# 单 GPU
+config = EvalConfig(gpus="0")
 ```
 
-### 3. 使用方式
+## 🎯 未来规划
 
-**从 GitHub 安装：**
-```bash
-pip install git+https://github.com/YOUR_USERNAME/evalscope-toolkit.git
-```
+- [ ] 支持更多评估数据集
+- [ ] 添加自定义数据集支持
+- [ ] 并行评估多个模型
+- [ ] 结果可视化和对比分析
+- [ ] Web UI 界面
+- [ ] Docker 容器化
 
-**克隆使用：**
+## 📞 获取帮助
+
+- **GitHub Issues**: [报告问题或功能请求](https://github.com/maxuan1798/evalscope_toolkit/issues)
+- **文档**: 查看 README.md
+- **示例**: `eval.ipynb`
+
+## 🤝 贡献
+
+欢迎贡献代码、报告问题或提出建议！
+
 ```bash
-git clone https://github.com/YOUR_USERNAME/evalscope-toolkit.git
-cd evalscope-toolkit
+git clone https://github.com/maxuan1798/evalscope_toolkit.git
+cd evalscope_toolkit
 pip install -e .
 ```
 
-## 🎯 未来改进方向
+## 📄 许可证
 
-1. **更多数据集支持**
-   - 添加自定义数据集支持
-   - 支持私有数据集
+本项目采用 MIT 许可证。
 
-2. **性能优化**
-   - 并行评估多个模型
-   - 优化数据集加载
+## 🙏 致谢
 
-3. **结果分析**
-   - 添加结果可视化
-   - 生成对比报告
-   - 统计分析工具
-
-4. **集成测试**
-   - 添加单元测试
-   - CI/CD 集成
-
-5. **Web 界面**
-   - 开发 Web UI
-   - 实时监控评估进度
-
-## 📞 支持
-
-- GitHub Issues: 报告问题和功能请求
-- 文档: README.md 和 QUICKSTART.md
-- 示例: simple_eval.ipynb 和 example_eval.py
-
-## 🎉 完成！
-
-项目已经完全重构并模块化。用户现在可以：
-1. ✅ 通过简化的 Notebook 快速开始
-2. ✅ 作为 Python 包导入使用
-3. ✅ 通过命令行运行评估
-4. ✅ 轻松配置模型和数据集
-5. ✅ 获得完整的日志和报告
+- [vLLM](https://github.com/vllm-project/vllm) - 高性能 LLM 推理引擎
+- [Evalscope](https://github.com/modelscope/evalscope) - 模型评估框架
+- [ModelScope](https://modelscope.cn/) - 模型和数据集平台
 
 ---
 
 **版本**: 1.0.0  
-**许可证**: MIT  
-**作者**: Your Name
+**更新时间**: 2025-11-14  
+**维护者**: [@maxuan1798](https://github.com/maxuan1798)
+
+如果这个项目对您有帮助，请给个 ⭐️ Star！
+
+
