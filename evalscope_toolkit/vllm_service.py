@@ -117,14 +117,25 @@ class VLLMService:
         # Check if model is accessible
         print(f"Checking model accessibility: {model_ref}")
         if not self.is_local_path(model_ref):
-            try:
-                response = requests.head(f"https://huggingface.co/{model_ref}", timeout=10)
-                if response.status_code == 200:
-                    print(f"✓ HuggingFace model accessible: {model_ref}")
-                else:
-                    print(f"⚠ HuggingFace model may not be accessible: {model_ref} (status: {response.status_code})")
-            except Exception as e:
-                print(f"⚠ Could not check HuggingFace model: {e}")
+            # Try HF mirror first, then original HF
+            endpoints = [
+                ("https://hf-mirror.com", "HF Mirror"),
+                ("https://huggingface.co", "HuggingFace")
+            ]
+            
+            for endpoint, name in endpoints:
+                try:
+                    response = requests.head(f"{endpoint}/{model_ref}", timeout=5)
+                    if response.status_code == 200:
+                        print(f"✓ {name} model accessible: {model_ref}")
+                        break
+                    else:
+                        print(f"⚠ {name} returned status {response.status_code}")
+                except Exception as e:
+                    print(f"⚠ Could not check {name}: {type(e).__name__}")
+                    continue
+            else:
+                print(f"⚠ Model accessibility check failed, but will continue anyway")
         
         # Start process
         with open(vllm_log, 'w') as log_file:
