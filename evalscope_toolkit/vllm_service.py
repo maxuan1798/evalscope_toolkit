@@ -135,59 +135,58 @@ class VLLMService:
         print(f"vLLM PID={self.process.pid}, log={vllm_log}")
         
         # Wait for service to be ready
-        print("Waiting for vLLM to be ready...")
-        for i in range(300):  # 5 minutes timeout
-            # Check if process is still running
+        # Local models: 3 min, Remote models: 10 min (for download)
+        timeout = 600 if not self.is_local_path(model_ref) else 180
+        print(f"Waiting for vLLM to be ready (timeout: {timeout}s)...")
+        
+        start_time = time.time()
+        check_interval = 2
+        
+        while time.time() - start_time < timeout:
+            elapsed = int(time.time() - start_time)
+            
+            # Check if process died
             if self.process.poll() is not None:
-                print(f"vLLM process exited with code {self.process.returncode}")
-                if vllm_log.exists():
-                    print("\nFull vLLM log:")
-                    with open(vllm_log) as f:
-                        print(f.read())
-                raise RuntimeError(f"vLLM process failed to start (exit code: {self.process.returncode})")
+                print(f"\n✗ vLLM process died (exit code: {self.process.returncode})")
+                self._show_log_tail(vllm_log)
+                raise RuntimeError(f"vLLM failed to start (exit code: {self.process.returncode})")
             
-            # Check service health
+            # Check health endpoint
             try:
-                response = requests.get(f"http://127.0.0.1:{self.port}/health", timeout=2)
-                if response.status_code == 200:
-                    print("✓ vLLM service ready")
+                resp = requests.get(f"http://127.0.0.1:{self.port}/health", timeout=1)
+                if resp.status_code == 200:
+                    print(f"✓ vLLM ready (took {elapsed}s)")
                     return self.port, self.served_model_name
             except:
                 pass
             
-            try:
-                response = requests.get(f"http://127.0.0.1:{self.port}/v1/models", timeout=2)
-                if response.status_code == 200:
-                    print("✓ vLLM service ready")
-                    return self.port, self.served_model_name
-            except:
-                pass
+            # Show progress every 30s
+            if elapsed > 0 and elapsed % 30 == 0:
+                print(f"  Still waiting... {elapsed}s / {timeout}s")
             
-            # Print progress every 30 seconds
-            if i % 15 == 0 and i > 0:
-                print(f"  Still waiting... ({i*2}s elapsed)")
-                
-                # Check log for any errors
-                if vllm_log.exists():
-                    with open(vllm_log) as f:
-                        lines = f.readlines()
-                        if lines:
-                            last_line = lines[-1].strip()
-                            if 'error' in last_line.lower() or 'exception' in last_line.lower():
-                                print(f"  Recent log line: {last_line}")
-            
-            time.sleep(2)
+            time.sleep(check_interval)
         
-        # Timeout, output logs
-        print("Error: vLLM not ready within 300 seconds")
-        if vllm_log.exists():
-            print("\nFull vLLM log:")
-            with open(vllm_log) as f:
-                print(f.read())
-        
-        # Kill the process
+        # Timeout
+        print(f"\n✗ Timeout after {timeout}s")
+        self._show_log_tail(vllm_log)
         self.stop()
-        raise RuntimeError("vLLM service failed to start")
+        raise RuntimeError(f"vLLM startup timeout ({timeout}s)")
+    
+    def _show_log_tail(self, log_path: Path, lines: int = 50):
+        """Show last lines of log file"""
+        if not log_path.exists():
+            return
+        
+        try:
+            with open(log_path) as f:
+                tail = f.readlines()[-lines:]
+                if tail:
+                    print(f"\nLast {len(tail)} lines of log:")
+                    print('='*60)
+                    print(''.join(tail))
+                    print('='*60)
+        except:
+            pass
     
     def stop(self):
         """Stop vLLM service"""
