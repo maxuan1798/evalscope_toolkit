@@ -114,7 +114,7 @@ class Evaluator:
                 })
                 
                 cmd = [
-                    sys.executable, '-m', 'evalscope.cli', 'eval',
+                    'evalscope', 'eval',
                     '--model', served_model_name,
                     '--generation-config', gen_config,
                     '--api-url', f'http://127.0.0.1:{port}/v1/chat/completions',
